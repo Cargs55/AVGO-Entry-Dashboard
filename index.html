@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVGO Trading Dashboard | Broadcom Inc.</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --border-color: #2d3748;
+            --text-primary: #f7fafc;
+            --text-secondary: #a0aec0;
+            --text-muted: #718096;
+            --green: #10b981;
+            --green-glow: rgba(16, 185, 129, 0.3);
+            --red: #ef4444;
+            --red-glow: rgba(239, 68, 68, 0.3);
+            --orange: #f59e0b;
+            --orange-glow: rgba(245, 158, 11, 0.3);
+            --blue: #3b82f6;
+            --blue-glow: rgba(59, 130, 246, 0.3);
+            --purple: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(ellipse at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+        }
+
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 20px 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ticker {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .company-name {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .price-section {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+        }
+
+        .current-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 42px;
+            font-weight: 700;
+        }
+
+        .price-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        .price-change.positive {
+            background: var(--green-glow);
+            color: var(--green);
+        }
+
+        .price-change.negative {
+            background: var(--red-glow);
+            color: var(--red);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .refresh-btn {
+            background: var(--blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.live {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .status-dot.cached {
+            background: var(--orange);
+            box-shadow: 0 0 8px var(--orange);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Traffic Light Section */
+        .traffic-light-section {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .traffic-light-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .traffic-light {
+            background: #1a1a2e;
+            border-radius: 60px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+            border: 3px solid #2d2d44;
+        }
+
+        .light {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            transition: all 0.5s;
+            position: relative;
+        }
+
+        .light.red { background: #3d1515; }
+        .light.orange { background: #3d2d15; }
+        .light.green { background: #153d1f; }
+
+        .light.red.active {
+            background: var(--red);
+            box-shadow: 0 0 40px var(--red), 0 0 80px var(--red-glow);
+        }
+
+        .light.orange.active {
+            background: var(--orange);
+            box-shadow: 0 0 40px var(--orange), 0 0 80px var(--orange-glow);
+        }
+
+        .light.green.active {
+            background: var(--green);
+            box-shadow: 0 0 40px var(--green), 0 0 80px var(--green-glow);
+        }
+
+        .signal-text {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .signal-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 8px;
+            max-width: 200px;
+        }
+
+        .signal-score {
+            margin-top: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Summary Panel */
+        .summary-panel {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+        }
+
+        .summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .summary-item {
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .summary-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Trend Badge */
+        .trend-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .trend-badge.bullish {
+            background: var(--blue-glow);
+            color: var(--blue);
+        }
+
+        .trend-badge.bearish {
+            background: var(--red-glow);
+            color: var(--red);
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--blue);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-signal {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .card-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .card-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* RSI Section */
+        .rsi-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .rsi-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+        }
+
+        .rsi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .rsi-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .rsi-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .rsi-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            margin-top: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .rsi-bar::before {
+            content: '';
+            position: absolute;
+            left: 30%;
+            right: 30%;
+            top: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .rsi-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        .rsi-zones {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Support/Resistance */
+        .levels-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .levels-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+        }
+
+        .levels-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .level-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .level-row:last-child {
+            border-bottom: none;
+        }
+
+        .level-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .level-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .level-distance {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .level-distance.above {
+            background: var(--red-glow);
+            color: var(--red);
+        }
+
+        .level-distance.below {
+            background: var(--green-glow);
+            color: var(--green);
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            height: 300px;
+        }
+
+        /* Signal Breakdown */
+        .signals-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+        }
+
+        .signals-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .signals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .signal-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .signal-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .signal-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .signal-dot.bullish { background: var(--green); }
+        .signal-dot.bearish { background: var(--red); }
+        .signal-dot.neutral { background: var(--orange); }
+
+        .signal-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .signal-label.bullish { color: var(--green); }
+        .signal-label.bearish { color: var(--red); }
+        .signal-label.neutral { color: var(--orange); }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .traffic-light-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .main-grid, .rsi-section, .levels-section {
+                grid-template-columns: 1fr;
+            }
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div>
+                    <div class="ticker">AVGO</div>
+                    <div class="company-name">Broadcom Inc. • NASDAQ</div>
+                </div>
+                <div class="price-section">
+                    <span class="current-price" id="currentPrice">$---</span>
+                    <span class="price-change" id="priceChange">--%</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <div class="last-update" id="lastUpdate">Last update: --</div>
+                <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">
+                    ↻ Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Traffic Light + Summary -->
+        <div class="traffic-light-section">
+            <div class="traffic-light-container">
+                <div class="traffic-light">
+                    <div class="light red" id="lightRed"></div>
+                    <div class="light orange" id="lightOrange"></div>
+                    <div class="light green" id="lightGreen"></div>
+                </div>
+                <div class="signal-text" id="signalText">ANALYZING</div>
+                <div class="signal-description" id="signalDesc">Fetching market data...</div>
+                <div class="signal-score" id="signalScore">Score: --/10</div>
+            </div>
+            <div class="summary-panel">
+                <div class="summary-title">
+                    📊 Market Summary
+                    <span class="trend-badge" id="trendBadge">
+                        <span id="trendIcon">↑</span>
+                        <span id="trendText">Loading...</span>
+                    </span>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Day Range</div>
+                        <div class="summary-value" id="dayRange">--</div>
+                        <div class="summary-sub" id="dayRangeSub">Low - High</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">52 Week Range</div>
+                        <div class="summary-value" id="weekRange">--</div>
+                        <div class="summary-sub" id="weekRangeSub">Low - High</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Volume 24h</div>
+                        <div class="summary-value" id="volume24h">--</div>
+                        <div class="summary-sub" id="volumeSub">vs avg: --</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Market Cap</div>
+                        <div class="summary-value" id="marketCap">--</div>
+                        <div class="summary-sub">USD</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">P/E Ratio</div>
+                        <div class="summary-value" id="peRatio">--</div>
+                        <div class="summary-sub">TTM</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Dividend Yield</div>
+                        <div class="summary-value" id="divYield">--</div>
+                        <div class="summary-sub">Annual</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Moving Averages -->
+        <div class="main-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MA 25</span>
+                    <span class="card-signal" id="ma25Signal"></span>
+                </div>
+                <div class="card-value" id="ma25">--</div>
+                <div class="card-sub" id="ma25Status">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MA 50</span>
+                    <span class="card-signal" id="ma50Signal"></span>
+                </div>
+                <div class="card-value" id="ma50">--</div>
+                <div class="card-sub" id="ma50Status">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MA 100</span>
+                    <span class="card-signal" id="ma100Signal"></span>
+                </div>
+                <div class="card-value" id="ma100">--</div>
+                <div class="card-sub" id="ma100Status">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MA 200</span>
+                    <span class="card-signal" id="ma200Signal"></span>
+                </div>
+                <div class="card-value" id="ma200">--</div>
+                <div class="card-sub" id="ma200Status">Loading...</div>
+            </div>
+        </div>
+
+        <!-- RSI Section -->
+        <div class="rsi-section">
+            <div class="rsi-card">
+                <div class="rsi-header">
+                    <span class="rsi-title">RSI (7)</span>
+                    <span class="card-signal" id="rsi7Signal"></span>
+                </div>
+                <div class="rsi-value" id="rsi7">--</div>
+                <div class="rsi-bar">
+                    <div class="rsi-fill" id="rsi7Fill" style="width: 50%; background: var(--blue);"></div>
+                </div>
+                <div class="rsi-zones">
+                    <span>Oversold (30)</span>
+                    <span>Neutral</span>
+                    <span>Overbought (70)</span>
+                </div>
+            </div>
+            <div class="rsi-card">
+                <div class="rsi-header">
+                    <span class="rsi-title">RSI (14)</span>
+                    <span class="card-signal" id="rsi14Signal"></span>
+                </div>
+                <div class="rsi-value" id="rsi14">--</div>
+                <div class="rsi-bar">
+                    <div class="rsi-fill" id="rsi14Fill" style="width: 50%; background: var(--blue);"></div>
+                </div>
+                <div class="rsi-zones">
+                    <span>Oversold (30)</span>
+                    <span>Neutral</span>
+                    <span>Overbought (70)</span>
+                </div>
+            </div>
+            <div class="rsi-card">
+                <div class="rsi-header">
+                    <span class="rsi-title">RSI (21)</span>
+                    <span class="card-signal" id="rsi21Signal"></span>
+                </div>
+                <div class="rsi-value" id="rsi21">--</div>
+                <div class="rsi-bar">
+                    <div class="rsi-fill" id="rsi21Fill" style="width: 50%; background: var(--blue);"></div>
+                </div>
+                <div class="rsi-zones">
+                    <span>Oversold (30)</span>
+                    <span>Neutral</span>
+                    <span>Overbought (70)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MACD Card -->
+        <div class="main-grid" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MACD</span>
+                    <span class="card-signal" id="macdSignal"></span>
+                </div>
+                <div class="card-value" id="macdValue">--</div>
+                <div class="card-sub" id="macdStatus">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">MACD Signal Line</span>
+                </div>
+                <div class="card-value" id="macdSignalLine">--</div>
+                <div class="card-sub" id="macdHistogram">Histogram: --</div>
+            </div>
+        </div>
+
+        <!-- Support/Resistance Levels -->
+        <div class="levels-section">
+            <div class="levels-card">
+                <div class="levels-title" style="color: var(--green);">
+                    📈 Support Levels
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Support 1 (Strong)</span>
+                    <div>
+                        <span class="level-value" id="support1">--</span>
+                        <span class="level-distance below" id="support1Dist">--</span>
+                    </div>
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Support 2</span>
+                    <div>
+                        <span class="level-value" id="support2">--</span>
+                        <span class="level-distance below" id="support2Dist">--</span>
+                    </div>
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Support 3</span>
+                    <div>
+                        <span class="level-value" id="support3">--</span>
+                        <span class="level-distance below" id="support3Dist">--</span>
+                    </div>
+                </div>
+            </div>
+            <div class="levels-card">
+                <div class="levels-title" style="color: var(--red);">
+                    📉 Resistance Levels
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Resistance 1</span>
+                    <div>
+                        <span class="level-value" id="resistance1">--</span>
+                        <span class="level-distance above" id="resistance1Dist">--</span>
+                    </div>
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Resistance 2</span>
+                    <div>
+                        <span class="level-value" id="resistance2">--</span>
+                        <span class="level-distance above" id="resistance2Dist">--</span>
+                    </div>
+                </div>
+                <div class="level-row">
+                    <span class="level-label">Resistance 3 (Strong)</span>
+                    <div>
+                        <span class="level-value" id="resistance3">--</span>
+                        <span class="level-distance above" id="resistance3Dist">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Price Chart -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <span class="chart-title">📈 Price History (30 Days)</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Signal Breakdown -->
+        <div class="signals-section">
+            <div class="signals-title">🎯 Signal Breakdown</div>
+            <div class="signals-grid" id="signalsGrid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            symbol: 'AVGO',
+            refreshInterval: 5 * 60 * 1000, // 5 minutes
+        };
+
+        // Global state
+        let priceChart = null;
+        let marketData = null;
+
+        // Utility functions
+        function formatNumber(num, decimals = 2) {
+            if (num === null || num === undefined || isNaN(num)) return '--';
+            return num.toLocaleString('en-US', { 
+                minimumFractionDigits: decimals, 
+                maximumFractionDigits: decimals 
+            });
+        }
+
+        function formatCurrency(num) {
+            if (num === null || num === undefined || isNaN(num)) return '$--';
+            return '$' + formatNumber(num);
+        }
+
+        function formatLargeNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) return '--';
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return num.toString();
+        }
+
+        // Calculate RSI
+        function calculateRSI(prices, period) {
+            if (prices.length < period + 1) return null;
+            
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) gains += change;
+                else losses -= change;
+            }
+            
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+            
+            for (let i = period + 1; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) {
+                    avgGain = (avgGain * (period - 1) + change) / period;
+                    avgLoss = (avgLoss * (period - 1)) / period;
+                } else {
+                    avgGain = (avgGain * (period - 1)) / period;
+                    avgLoss = (avgLoss * (period - 1) - change) / period;
+                }
+            }
+            
+            if (avgLoss === 0) return 100;
+            const rs = avgGain / avgLoss;
+            return 100 - (100 / (1 + rs));
+        }
+
+        // Calculate EMA
+        function calculateEMA(prices, period) {
+            if (prices.length < period) return null;
+            const k = 2 / (period + 1);
+            let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            for (let i = period; i < prices.length; i++) {
+                ema = prices[i] * k + ema * (1 - k);
+            }
+            return ema;
+        }
+
+        // Calculate SMA
+        function calculateSMA(prices, period) {
+            if (prices.length < period) return null;
+            const slice = prices.slice(-period);
+            return slice.reduce((a, b) => a + b, 0) / period;
+        }
+
+        // Calculate MACD
+        function calculateMACD(prices) {
+            const ema12 = calculateEMA(prices, 12);
+            const ema26 = calculateEMA(prices, 26);
+            if (!ema12 || !ema26) return { macd: null, signal: null, histogram: null };
+            
+            const macd = ema12 - ema26;
+            // Simplified signal line calculation
+            const signal = calculateEMA(prices.slice(-9), 9) ? macd * 0.9 : macd;
+            const histogram = macd - signal;
+            
+            return { macd, signal, histogram };
+        }
+
+        // Calculate support/resistance from price data
+        function calculateLevels(prices, currentPrice) {
+            const sorted = [...prices].sort((a, b) => a - b);
+            const len = sorted.length;
+            
+            // Find pivot points
+            const low = sorted[0];
+            const high = sorted[len - 1];
+            const range = high - low;
+            
+            // Fibonacci-based levels
+            const supports = [
+                currentPrice - range * 0.236,
+                currentPrice - range * 0.382,
+                currentPrice - range * 0.618
+            ];
+            
+            const resistances = [
+                currentPrice + range * 0.236,
+                currentPrice + range * 0.382,
+                currentPrice + range * 0.618
+            ];
+            
+            return { supports, resistances };
+        }
+
+        // Fetch data from Yahoo Finance
+        async function fetchYahooData() {
+            const proxyUrl = 'https://corsproxy.io/?';
+            const baseUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+            const url = `${proxyUrl}${encodeURIComponent(baseUrl + CONFIG.symbol + '?interval=1d&range=1y')}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+                    throw new Error('No data returned');
+                }
+                
+                const result = data.chart.result[0];
+                const meta = result.meta;
+                const quotes = result.indicators.quote[0];
+                const timestamps = result.timestamp;
+                
+                // Extract price history
+                const prices = quotes.close.filter(p => p !== null);
+                const volumes = quotes.volume.filter(v => v !== null);
+                
+                // Current price info
+                const currentPrice = meta.regularMarketPrice;
+                const previousClose = meta.chartPreviousClose || meta.previousClose;
+                const change = currentPrice - previousClose;
+                const changePercent = (change / previousClose) * 100;
+                
+                // Calculate indicators
+                const ma25 = calculateSMA(prices, 25);
+                const ma50 = calculateSMA(prices, 50);
+                const ma100 = calculateSMA(prices, 100);
+                const ma200 = calculateSMA(prices, 200);
+                
+                const rsi7 = calculateRSI(prices.slice(-30), 7);
+                const rsi14 = calculateRSI(prices.slice(-30), 14);
+                const rsi21 = calculateRSI(prices.slice(-30), 21);
+                
+                const macdData = calculateMACD(prices);
+                const levels = calculateLevels(prices.slice(-90), currentPrice);
+                
+                // Volume analysis
+                const avgVolume = volumes.slice(-30).reduce((a, b) => a + b, 0) / 30;
+                const currentVolume = volumes[volumes.length - 1];
+                
+                // Get day range and 52-week range
+                const dayLow = meta.regularMarketDayLow || quotes.low[quotes.low.length - 1];
+                const dayHigh = meta.regularMarketDayHigh || quotes.high[quotes.high.length - 1];
+                const fiftyTwoWeekLow = meta.fiftyTwoWeekLow;
+                const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh;
+                
+                // Last 30 days for chart
+                const last30Prices = prices.slice(-30);
+                const last30Dates = timestamps.slice(-30).map(t => 
+                    new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                );
+                
+                return {
+                    isLive: true,
+                    currentPrice,
+                    previousClose,
+                    change,
+                    changePercent,
+                    dayLow,
+                    dayHigh,
+                    fiftyTwoWeekLow,
+                    fiftyTwoWeekHigh,
+                    volume: currentVolume,
+                    avgVolume,
+                    marketCap: meta.marketCap || null,
+                    ma25,
+                    ma50,
+                    ma100,
+                    ma200,
+                    rsi7,
+                    rsi14,
+                    rsi21,
+                    macd: macdData.macd,
+                    macdSignal: macdData.signal,
+                    macdHistogram: macdData.histogram,
+                    supports: levels.supports,
+                    resistances: levels.resistances,
+                    chartPrices: last30Prices,
+                    chartDates: last30Dates
+                };
+            } catch (error) {
+                console.error('Yahoo Finance error:', error);
+                return null;
+            }
+        }
+
+        // Update traffic light
+        function updateTrafficLight(data) {
+            let score = 0;
+            const signals = [];
+            
+            // Price vs MAs (max 4 points)
+            if (data.currentPrice > data.ma25) { score += 1; signals.push({ name: 'Price > MA25', status: 'bullish' }); }
+            else signals.push({ name: 'Price > MA25', status: 'bearish' });
+            
+            if (data.currentPrice > data.ma50) { score += 1; signals.push({ name: 'Price > MA50', status: 'bullish' }); }
+            else signals.push({ name: 'Price > MA50', status: 'bearish' });
+            
+            if (data.currentPrice > data.ma100) { score += 1; signals.push({ name: 'Price > MA100', status: 'bullish' }); }
+            else signals.push({ name: 'Price > MA100', status: 'bearish' });
+            
+            if (data.currentPrice > data.ma200) { score += 1; signals.push({ name: 'Price > MA200', status: 'bullish' }); }
+            else signals.push({ name: 'Price > MA200', status: 'bearish' });
+            
+            // MA alignment (1 point)
+            if (data.ma25 > data.ma50 && data.ma50 > data.ma100) { 
+                score += 1; 
+                signals.push({ name: 'MA Alignment', status: 'bullish' }); 
+            } else signals.push({ name: 'MA Alignment', status: 'neutral' });
+            
+            // RSI signals (max 3 points)
+            if (data.rsi14 > 30 && data.rsi14 < 70) { score += 1; signals.push({ name: 'RSI14 Neutral', status: 'bullish' }); }
+            else if (data.rsi14 < 30) { score += 2; signals.push({ name: 'RSI14 Oversold', status: 'bullish' }); }
+            else signals.push({ name: 'RSI14 Overbought', status: 'bearish' });
+            
+            // MACD (1 point)
+            if (data.macdHistogram > 0) { score += 1; signals.push({ name: 'MACD Bullish', status: 'bullish' }); }
+            else signals.push({ name: 'MACD Bearish', status: 'bearish' });
+            
+            // Volume (1 point)
+            if (data.volume > data.avgVolume) { score += 1; signals.push({ name: 'Volume Above Avg', status: 'bullish' }); }
+            else signals.push({ name: 'Volume Below Avg', status: 'neutral' });
+            
+            // Update lights
+            document.getElementById('lightRed').classList.remove('active');
+            document.getElementById('lightOrange').classList.remove('active');
+            document.getElementById('lightGreen').classList.remove('active');
+            
+            const signalText = document.getElementById('signalText');
+            const signalDesc = document.getElementById('signalDesc');
+            
+            if (score >= 7) {
+                document.getElementById('lightGreen').classList.add('active');
+                signalText.textContent = 'BUY';
+                signalText.style.color = 'var(--green)';
+                signalDesc.textContent = 'Strong bullish signals. Consider entry.';
+            } else if (score >= 4) {
+                document.getElementById('lightOrange').classList.add('active');
+                signalText.textContent = 'WAIT';
+                signalText.style.color = 'var(--orange)';
+                signalDesc.textContent = 'Mixed signals. Wait for confirmation.';
+            } else {
+                document.getElementById('lightRed').classList.add('active');
+                signalText.textContent = 'HOLD OFF';
+                signalText.style.color = 'var(--red)';
+                signalDesc.textContent = 'Bearish conditions. Not recommended.';
+            }
+            
+            document.getElementById('signalScore').textContent = `Score: ${score}/10`;
+            
+            // Update signals grid
+            const signalsGrid = document.getElementById('signalsGrid');
+            signalsGrid.innerHTML = signals.map(s => `
+                <div class="signal-item">
+                    <span class="signal-name">${s.name}</span>
+                    <div class="signal-status">
+                        <span class="signal-dot ${s.status}"></span>
+                        <span class="signal-label ${s.status}">${s.status.toUpperCase()}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            return score;
+        }
+
+        // Update RSI display
+        function updateRSI(elementId, fillId, signalId, value) {
+            const el = document.getElementById(elementId);
+            const fill = document.getElementById(fillId);
+            const signal = document.getElementById(signalId);
+            
+            if (value === null) {
+                el.textContent = '--';
+                return;
+            }
+            
+            el.textContent = formatNumber(value, 1);
+            fill.style.width = `${value}%`;
+            
+            if (value < 30) {
+                fill.style.background = 'var(--green)';
+                signal.style.background = 'var(--green)';
+            } else if (value > 70) {
+                fill.style.background = 'var(--red)';
+                signal.style.background = 'var(--red)';
+            } else {
+                fill.style.background = 'var(--blue)';
+                signal.style.background = 'var(--orange)';
+            }
+        }
+
+        // Update MA card
+        function updateMACard(valueId, statusId, signalId, maValue, currentPrice) {
+            const valueEl = document.getElementById(valueId);
+            const statusEl = document.getElementById(statusId);
+            const signalEl = document.getElementById(signalId);
+            
+            if (maValue === null) {
+                valueEl.textContent = '--';
+                statusEl.textContent = 'Insufficient data';
+                return;
+            }
+            
+            valueEl.textContent = formatCurrency(maValue);
+            
+            const diff = ((currentPrice - maValue) / maValue) * 100;
+            if (currentPrice > maValue) {
+                statusEl.textContent = `${formatNumber(Math.abs(diff), 1)}% above`;
+                statusEl.style.color = 'var(--green)';
+                signalEl.style.background = 'var(--green)';
+            } else {
+                statusEl.textContent = `${formatNumber(Math.abs(diff), 1)}% below`;
+                statusEl.style.color = 'var(--red)';
+                signalEl.style.background = 'var(--red)';
+            }
+        }
+
+        // Update levels
+        function updateLevels(supports, resistances, currentPrice) {
+            supports.forEach((level, i) => {
+                const el = document.getElementById(`support${i + 1}`);
+                const distEl = document.getElementById(`support${i + 1}Dist`);
+                el.textContent = formatCurrency(level);
+                const dist = ((currentPrice - level) / currentPrice) * 100;
+                distEl.textContent = `-${formatNumber(dist, 1)}%`;
+            });
+            
+            resistances.forEach((level, i) => {
+                const el = document.getElementById(`resistance${i + 1}`);
+                const distEl = document.getElementById(`resistance${i + 1}Dist`);
+                el.textContent = formatCurrency(level);
+                const dist = ((level - currentPrice) / currentPrice) * 100;
+                distEl.textContent = `+${formatNumber(dist, 1)}%`;
+            });
+        }
+
+        // Update chart
+        function updateChart(dates, prices) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            if (priceChart) {
+                priceChart.destroy();
+            }
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+            
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'AVGO Price',
+                        data: prices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a2332',
+                            titleColor: '#f7fafc',
+                            bodyColor: '#a0aec0',
+                            borderColor: '#2d3748',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (ctx) => `$${formatNumber(ctx.raw)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(45, 55, 72, 0.5)' },
+                            ticks: { color: '#718096' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(45, 55, 72, 0.5)' },
+                            ticks: { 
+                                color: '#718096',
+                                callback: (val) => '$' + formatNumber(val, 0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Main fetch and update function
+        async function fetchData() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '↻ Loading...';
+            statusText.textContent = 'Fetching data...';
+            
+            try {
+                const data = await fetchYahooData();
+                
+                if (!data) {
+                    throw new Error('Failed to fetch data');
+                }
+                
+                marketData = data;
+                
+                // Update status
+                statusDot.classList.remove('cached');
+                statusDot.classList.add('live');
+                statusText.textContent = data.isLive ? 'Live Data' : 'Cached Data';
+                
+                // Update price
+                document.getElementById('currentPrice').textContent = formatCurrency(data.currentPrice);
+                const priceChangeEl = document.getElementById('priceChange');
+                const changeSign = data.change >= 0 ? '+' : '';
+                priceChangeEl.textContent = `${changeSign}${formatNumber(data.change)} (${changeSign}${formatNumber(data.changePercent)}%)`;
+                priceChangeEl.classList.remove('positive', 'negative');
+                priceChangeEl.classList.add(data.change >= 0 ? 'positive' : 'negative');
+                
+                // Update trend
+                const trendBadge = document.getElementById('trendBadge');
+                const trendIcon = document.getElementById('trendIcon');
+                const trendText = document.getElementById('trendText');
+                const isBullish = data.currentPrice > data.ma50 && data.macdHistogram > 0;
+                trendBadge.classList.remove('bullish', 'bearish');
+                trendBadge.classList.add(isBullish ? 'bullish' : 'bearish');
+                trendIcon.textContent = isBullish ? '↑' : '↓';
+                trendText.textContent = isBullish ? 'BULLISH' : 'BEARISH';
+                
+                // Update summary
+                document.getElementById('dayRange').textContent = `${formatCurrency(data.dayLow)} - ${formatCurrency(data.dayHigh)}`;
+                document.getElementById('weekRange').textContent = `${formatCurrency(data.fiftyTwoWeekLow)} - ${formatCurrency(data.fiftyTwoWeekHigh)}`;
+                document.getElementById('volume24h').textContent = formatLargeNumber(data.volume);
+                const volRatio = data.volume / data.avgVolume;
+                document.getElementById('volumeSub').textContent = `vs avg: ${formatNumber(volRatio * 100, 0)}%`;
+                document.getElementById('marketCap').textContent = data.marketCap ? formatLargeNumber(data.marketCap) : '--';
+                
+                // Update MAs
+                updateMACard('ma25', 'ma25Status', 'ma25Signal', data.ma25, data.currentPrice);
+                updateMACard('ma50', 'ma50Status', 'ma50Signal', data.ma50, data.currentPrice);
+                updateMACard('ma100', 'ma100Status', 'ma100Signal', data.ma100, data.currentPrice);
+                updateMACard('ma200', 'ma200Status', 'ma200Signal', data.ma200, data.currentPrice);
+                
+                // Update RSIs
+                updateRSI('rsi7', 'rsi7Fill', 'rsi7Signal', data.rsi7);
+                updateRSI('rsi14', 'rsi14Fill', 'rsi14Signal', data.rsi14);
+                updateRSI('rsi21', 'rsi21Fill', 'rsi21Signal', data.rsi21);
+                
+                // Update MACD
+                document.getElementById('macdValue').textContent = formatNumber(data.macd);
+                document.getElementById('macdSignalLine').textContent = formatNumber(data.macdSignal);
+                document.getElementById('macdHistogram').textContent = `Histogram: ${formatNumber(data.macdHistogram)}`;
+                const macdSignalEl = document.getElementById('macdSignal');
+                macdSignalEl.style.background = data.macdHistogram > 0 ? 'var(--green)' : 'var(--red)';
+                document.getElementById('macdStatus').textContent = data.macdHistogram > 0 ? 'Bullish momentum' : 'Bearish momentum';
+                document.getElementById('macdStatus').style.color = data.macdHistogram > 0 ? 'var(--green)' : 'var(--red)';
+                
+                // Update levels
+                updateLevels(data.supports, data.resistances, data.currentPrice);
+                
+                // Update chart
+                updateChart(data.chartDates, data.chartPrices);
+                
+                // Update traffic light
+                updateTrafficLight(data);
+                
+                // Update timestamp
+                document.getElementById('lastUpdate').textContent = 
+                    `Last update: ${new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDot.classList.remove('live');
+                statusDot.classList.add('cached');
+                statusText.textContent = 'Error loading data';
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '↻ Refresh Data';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            // Auto-refresh every 5 minutes
+            setInterval(fetchData, CONFIG.refreshInterval);
+        });
+    </script>
+</body>
+</html>
